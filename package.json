@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "NODE_ENV=developmet nodemon index",
-    "production": "NODE_ENV=production nodemon index",
+    "start": "SET NODE_ENV=developmet && nodemon index",
+    "production": "SET NODE_ENV=production && nodemon index",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Aidul",

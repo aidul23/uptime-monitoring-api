@@ -1,6 +1,7 @@
 const data = require('../../lib/data');
 const {hash} = require('../../helpers/utilities');
 const {parseJSON} = require('../../helpers/utilities');
+const tokenHandle = require('./tokenHandler'); 
 
 const handler = {}
 
@@ -69,22 +70,33 @@ handler._users.post = (requestProperties, callback) => {
 
 handler._users.get = (requestProperties, callback) => {
     //check the phone number is valid
-    const pNumber = typeof(requestProperties.queryStringObject.pNumber) === 'string' && requestProperties.queryStringObject.pNumber.trim().length == 10 ? requestProperties.queryStringObject.pNumber : false; 
+    const pNumber = typeof(requestProperties.queryStringObject.pNumber) === 'string' && requestProperties.queryStringObject.pNumber.trim().length === 10 ? requestProperties.queryStringObject.pNumber : false; 
 
     if(pNumber) {
-        data.read('users', pNumber, (err, u) => {
-            const user = {...parseJSON(u)};
+        //verify token
+        const token = typeof(requestProperties.headerObject.token) === 'string' ? requestProperties.headerObject.token : false;
 
-            if(!err && user) {
-
-                delete user.password;
-                callback(200, user);
+        tokenHandle._token.verify(token, pNumber, (tokenID) => {
+            if(tokenID) {
+                data.read('users', pNumber, (err, u) => {
+                    const user = {...parseJSON(u)};
+        
+                    if(!err && user) {
+                        delete user.password;
+                        callback(200, user);
+                    } else {
+                        callback(404, {
+                            error: 'not found'
+                        });
+                    }
+                });
             } else {
-                callback(404, {
-                    error: 'not found'
+                callback(403, {
+                    error: 'Auth failed'
                 });
             }
-        })
+        });
+
     } else {
         callback(404, {
             error: 'not found'
@@ -103,41 +115,53 @@ handler._users.put = (requestProperties, callback) => {
 
     if(pNumber) {
         if(fName || lName || password) {
-            data.read('users', pNumber, (err, uData) => {
-                const userData = {...parseJSON(uData)};
 
-                if(!err && userData) {
-                    if(fName) {
-                        userData.fName = fName;
-                    }
+        const token = typeof(requestProperties.headerObject.token) === 'string' ? requestProperties.headerObject.token : false;
 
-                    if(lName) {
-                        userData.lName = lName;
-                    }
-
-                    if(password) {
-                        userData.password = hash(password);
-                    }
-
-                    //update to database
-                    data.update('users', pNumber, userData, (err1) => {
-                        if(!err1) {
-                            callback(200, {
-                                message: 'user updated successfully'
-                            });
-                        } else {
-                            callback(500, {
-                                error: 'server side problem'
-                            });
+        tokenHandle._token.verify(token, pNumber, (tokenID) => {
+            if(tokenID) {
+                data.read('users', pNumber, (err, uData) => {
+                    const userData = {...parseJSON(uData)};
+    
+                    if(!err && userData) {
+                        if(fName) {
+                            userData.fName = fName;
                         }
-                    });
-                    
-                } else {
-                    callback(400, {
-                        error: 'problem in request'
-                    });
-                }
-            });
+    
+                        if(lName) {
+                            userData.lName = lName;
+                        }
+    
+                        if(password) {
+                            userData.password = hash(password);
+                        }
+    
+                        //update to database
+                        data.update('users', pNumber, userData, (err1) => {
+                            if(!err1) {
+                                callback(200, {
+                                    message: 'user updated successfully'
+                                });
+                            } else {
+                                callback(500, {
+                                    error: 'server side problem'
+                                });
+                            }
+                        });
+                        
+                    } else {
+                        callback(400, {
+                            error: 'problem in request'
+                        });
+                    }
+                });
+            } else {
+                callback(403, {
+                    error: 'Auth failed'
+                });
+            }
+        });
+
         } else {
             callback(400, {
                 error: 'problem in request'
@@ -154,12 +178,22 @@ handler._users.delete = (requestProperties, callback) => {
     const pNumber = typeof(requestProperties.queryStringObject.pNumber) === 'string' && requestProperties.queryStringObject.pNumber.trim().length == 10 ? requestProperties.queryStringObject.pNumber : false; 
 
     if(pNumber) {
-        data.read('users', pNumber, (err, userData) => {
-            if(!err && userData) {
-                data.delete('users', pNumber, (err1) => {
-                    if(!err1) {
-                        callback(200, {
-                            message: 'user successfully deleted'
+        const token = typeof(requestProperties.headerObject.token) === 'string' ? requestProperties.headerObject.token : false;
+
+        tokenHandle._token.verify(token, pNumber, (tokenID) => {
+            if(tokenID) {
+                data.read('users', pNumber, (err, userData) => {
+                    if(!err && userData) {
+                        data.delete('users', pNumber, (err1) => {
+                            if(!err1) {
+                                callback(200, {
+                                    message: 'user successfully deleted'
+                                });
+                            } else {
+                                callback(500, {
+                                    error: 'server side error'
+                                });
+                            }
                         });
                     } else {
                         callback(500, {
@@ -168,11 +202,12 @@ handler._users.delete = (requestProperties, callback) => {
                     }
                 });
             } else {
-                callback(500, {
-                    error: 'server side error'
+                callback(403, {
+                    error: 'Auth failed'
                 });
             }
         });
+        
     } else {
         callback(400, {
             error: 'problem in request'

@@ -29,6 +29,26 @@ utilities.hash = (string) => {
     }
 };
 
+//create random string
+utilities.createRandomString = (stringLen) => {
+    let length = stringLen;
+    length = typeof(stringLen) === 'number' && stringLen > 0 ? stringLen : false;
+
+    if(length) {
+        let chatSet = "abcdefghijklmnopqrstuvwxyz1234567890";
+
+        let output = "";
+
+        for(let i = 1 ; i <= length ; i++) {
+            let randomChat = chatSet.charAt(Math.floor(Math.random() * chatSet.length));
+            output += randomChat;
+        }
+        return output;
+    } 
+
+    return false;
+};
+
 
 
 module.exports = utilities;

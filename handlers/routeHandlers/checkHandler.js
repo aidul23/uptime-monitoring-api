@@ -143,11 +143,153 @@ handler._check.get = (requestProperties, callback) => {
 }
 
 handler._check.put = (requestProperties, callback) => {
+    let id = typeof(requestProperties.body.id) === 'string' &&
+                    requestProperties.body.id.trim().length === 20 ? requestProperties.body.id : false;
+
+    let protocol = typeof(requestProperties.body.protocol) === 'string' &&
+                    ['http','https'].indexOf(requestProperties.body.protocol) > -1 ? requestProperties.body.protocol : false;
+
+    let url = typeof(requestProperties.body.url) === 'string' &&
+                    requestProperties.body.url.trim().length > 0 ? requestProperties.body.url : false;
     
+    let method = typeof(requestProperties.body.method) === 'string' &&
+                     ['GET','POST','PUT','DELETE'].indexOf(requestProperties.body.method) > -1 ? requestProperties.body.method : false;
+
+    let successCodes = typeof(requestProperties.body.successCodes) === 'object' &&
+                     requestProperties.body.successCodes instanceof Array ? requestProperties.body.successCodes : false;
+
+    let timeoutSeconds = typeof(requestProperties.body.timeoutSeconds) === 'number' && 
+                    requestProperties.body.timeoutSeconds % 1 === 0 && requestProperties.body.timeoutSeconds >= 1 && requestProperties.body.timeoutSeconds <= 5 ? requestProperties.body.timeoutSeconds : false;
+    
+    if(id) {
+        if(protocol || url || method || successCodes || timeoutSeconds) {
+            data.read('checks', id, (err1, checkData) => {
+                if(!err1 && checkData) {
+                    let checkObj = parseJSON(checkData);
+
+                    let token = typeof(requestProperties.headerObject.token === 'string') ? requestProperties.headerObject.token : false;
+
+                    tokenHandle._token.verify(token, checkObj.userPhone, (tokenIsValid) => {
+                        if(tokenIsValid) {
+                            if(protocol) {
+                                checkObj.protocol = protocol;
+                            }
+                            if(url) {
+                                checkObj.protocol = url;
+                            }
+                            if(method) {
+                                checkObj.method = method;
+                            }
+                            if(successCodes) {
+                                checkObj.successCodes = successCodes;
+                            }
+                            if(timeoutSeconds) {
+                                checkObj.timeoutSeconds = timeoutSeconds;
+                            }
+
+                            //update the checkObj
+                            data.update('checks', id, checkObj, (err2) => {
+                                if(!err2) {
+                                    callback(200);
+                                } else {
+                                    callback(500, {
+                                        error: 'server side error'
+                                    });
+                                }
+                            });
+                        } else {
+                            callback(403, {
+                                error: 'auth error'
+                            });
+                        }
+                    });
+                } else {
+                    callback(500, {
+                        error: 'server side error'
+                    });
+                }
+            })
+        } else {
+            callback(400, {
+                error: 'you must provide at least one field to update'
+            });
+        }
+    } else {
+        callback(400, {
+            error: 'problem in request'
+        });
+    }
 }
 
 handler._check.delete = (requestProperties, callback) => {
-    
+    const id = typeof(requestProperties.queryStringObject.id) === 'string' && requestProperties.queryStringObject.id.trim().length == 20 ? requestProperties.queryStringObject.id : false; 
+
+    if(id) {
+        data.read('checks', id, (err, checkData) => {
+            if(!err && checkData) {
+                let token = typeof(requestProperties.headerObject.token === 'string') ? requestProperties.headerObject.token : false;
+                tokenHandle._token.verify(token, parseJSON(checkData).userPhone, (tokenIsValid) => {
+                    if(tokenIsValid) {
+                        //delete the check data
+                        data.delete('checks', id, (err1) => {
+                            if(!err1) {
+                                data.read('users', parseJSON(userData).userPhone, (err2, userData) => {
+                                    let userObj = parseJSON(userData);
+
+                                    if(!err2 && userData) {
+                                        let userChecks = typeof(userObj.checks) === 'object' && 
+                                        userObj.checks instanceof Array ? userObj.checks : [];
+
+                                        //remove the deleted check id from userlist of checks
+                                        let checkPosition = userChecks.indexOf(id);
+
+                                        if(checkPosition > -1) {
+                                            userChecks.splice(checkPosition, 1);
+                                            //update the user data
+                                            userObj.checks = userChecks;
+                                            data.update('users', userObj.pNumber, userObj, (err4) => {
+                                                if(!err4) {
+                                                    callback(200)
+                                                } else {
+                                                    callback(500, {
+                                                        error: 'There is a server side problem'
+                                                    });
+                                                }
+                                            });
+                                        } else {
+                                            callback(500, {
+                                                error: 'check id not found'
+                                            });
+                                        }
+                                    } else {
+                                        callback(500, {
+                                            error: 'server side problem'
+                                        });
+                                    }
+                                });
+                            } else {
+                                callback(500, {
+                                    error: 'server side problem'
+                                });
+                            }
+                        });
+                    } else {
+                        callback(403, {
+                            error: 'auth fail'
+                        });
+                    }
+                });
+            } else {
+                callback(404, {
+                    error: 'not found'
+                });
+            }
+        })
+    } else {
+        callback(404, {
+            error: 'not found'
+        });
+    }
 }
 
 module.exports = handler;

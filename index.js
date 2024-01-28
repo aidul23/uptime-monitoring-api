@@ -2,8 +2,13 @@ const http = require('http');
 const {handleReqRes} = require('./helpers/handleReqRes');
 const env = require('./helpers/environment');
 const data = require('./lib/data');
+const {sendTwilioSms} = require('./helpers/notofications');
 
 const app = {};
+
+// sendTwilioSms('0417236446', 'Hello World!', (err) => {
+//     console.log(`${err}`);
+// });
 
 // testing filesystem
 // @TODO: will clean letter

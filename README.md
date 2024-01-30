@@ -1,4 +1,5 @@
-# The Uptime Monitoring API is a Node.js application designed to monitor the uptime status of websites or services through HTTP requests.
+# Uptime Monitoring API
+The Uptime Monitoring API is a Node.js application designed to monitor the uptime status of websites or services through HTTP requests.
 
 ## Features:
 Monitors the uptime status of websites or services.
